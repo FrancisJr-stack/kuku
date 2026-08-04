@@ -13,12 +13,18 @@ import onnxruntime as ort
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 # Load Environment Variables
 load_dotenv(override=True)
 
 api_key = os.getenv("GEMINI_API_KEY")
 print(f" REAL-TIME GEMINI KEY LOADED: {api_key[:10] + '...' if api_key else 'NONE'}")
+
+# Initialize Supabase Client
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
 app = FastAPI()
 
@@ -305,7 +311,6 @@ async def serve_frontend():
       let multiLangSolutions = { en: "", ha: "", yo: "", ig: "" };
       let currentLang = "en";
 
-      // Load Stats and Last Diagnosis from LocalStorage on page start
       let totalScans = parseInt(localStorage.getItem("totalScans") || "0");
       document.getElementById("statTotalScans").innerText = totalScans;
 
@@ -405,7 +410,6 @@ async def serve_frontend():
             resultBox.style.display = "block";
             aiVetCard.style.display = "block";
 
-            // Update Analytics & Save to localStorage
             totalScans++;
             localStorage.setItem("totalScans", totalScans);
             localStorage.setItem("lastDiagnosis", currentDiagnosis);
@@ -545,6 +549,19 @@ async def predict(file: UploadFile = File(...)):
 
         max_prob_index = int(np.argmax(probabilities))
         max_confidence = float(probabilities[max_prob_index])
+
+        # Background save image to Supabase if configured
+        if supabase:
+            try:
+                file_extension = file.filename.split(".")[-1] if file.filename else "jpg"
+                unique_filename = f"production_capture_{int(time.time())}.{file_extension}"
+                supabase.storage.from_("production-images").upload(
+                    path=unique_filename,
+                    file=contents,
+                    file_options={"content-type": file.content_type}
+                )
+            except Exception as e:
+                print(f"Failed to background-save image to Supabase: {e}")
 
         if max_confidence < CONFIDENCE_THRESHOLD:
             zero_prob_map = {className: 0.0 for className in CLASS_NAMES}
