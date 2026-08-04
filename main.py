@@ -555,7 +555,7 @@ async def predict(file: UploadFile = File(...)):
             try:
                 file_extension = file.filename.split(".")[-1] if file.filename else "jpg"
                 unique_filename = f"production_capture_{int(time.time())}.{file_extension}"
-                supabase.storage.from_("production-images").upload(
+                supabase.storage.from_("kuku").upload(
                     path=unique_filename,
                     file=contents,
                     file_options={"content-type": file.content_type}
