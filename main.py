@@ -550,18 +550,24 @@ async def predict(file: UploadFile = File(...)):
         max_prob_index = int(np.argmax(probabilities))
         max_confidence = float(probabilities[max_prob_index])
 
-        # Background save image to Supabase if configured
+        # Background save image to Supabase if configured with debugging prints
         if supabase:
             try:
                 file_extension = file.filename.split(".")[-1] if file.filename else "jpg"
                 unique_filename = f"production_capture_{int(time.time())}.{file_extension}"
-                supabase.storage.from_("kuku").upload(
+                
+                print(f"Attempting to upload {unique_filename} to Supabase bucket 'kuku'...")
+                
+                response = supabase.storage.from_("kuku").upload(
                     path=unique_filename,
                     file=contents,
                     file_options={"content-type": file.content_type}
                 )
+                print(f"Successfully uploaded image to Supabase: {response}")
             except Exception as e:
-                print(f"Failed to background-save image to Supabase: {e}")
+                print(f"FAILED to background-save image to Supabase: {e}")
+        else:
+            print("Supabase client is NOT initialized (missing URL or KEY).")
 
         if max_confidence < CONFIDENCE_THRESHOLD:
             zero_prob_map = {className: 0.0 for className in CLASS_NAMES}
