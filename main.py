@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 api_key = os.getenv("GEMINI_API_KEY")
-print(f"🔍 REAL-TIME GEMINI KEY LOADED: {api_key[:10] + '...' if api_key else 'NONE'}")
+print(f" REAL-TIME GEMINI KEY LOADED: {api_key[:10] + '...' if api_key else 'NONE'}")
 
 app = FastAPI()
 
@@ -34,7 +34,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve static files (like style.css) from the root directory
+# Serve static files (style.css) from the root directory
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 CLASS_NAMES = ["Coccidiosis", "Healthy", "New Castle", "Salmonella"]
@@ -42,19 +42,19 @@ CONFIDENCE_THRESHOLD = 0.60  # 60% minimum confidence required
 
 session = None
 
-# 1. Initialize ONNX Model Session
+# Initialize ONNX Model Session
 def init_model():
     global session
     try:
         model_path = "./models/chicken_model.onnx"
         session = ort.InferenceSession(model_path)
-        print("✅ ONNX Model successfully loaded into Python!")
+        print("ONNX Model successfully loaded into Python!")
     except Exception as err:
-        print(f"❌ Failed to load ONNX model: {err}")
+        print(f"Failed to load ONNX model: {err}")
 
 init_model()
 
-# 2. Preprocess uploaded image into RGB tensor
+# Preprocess uploaded image into RGB tensor
 async def preprocess_image(image_bytes: bytes):
     TARGET_SIZE = 244
 
@@ -126,7 +126,7 @@ async def serve_frontend():
   <body>
     <div class="container">
       <header>
-        <h1>🐔 KUKU-KUKU AI</h1>
+        <h1>🐔 KUKU-AI</h1>
         <p>Instant Chicken Disease Diagnostics & Health Analysis</p>
       </header>
 
@@ -514,7 +514,7 @@ async def serve_frontend():
 </html>
     """
 
-# 3. /predict POST Endpoint
+# predict POST Endpoint
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
