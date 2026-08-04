@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+numpy
+opencv-python-headless
+onnxruntime
+google-genai
+python-dotenv
+pydantic

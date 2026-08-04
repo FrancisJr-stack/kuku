@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KUKU-KUKU | AI Chicken Disease Classifier</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <style>
+      .lang-tabs {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.8rem;
+        flex-wrap: wrap;
+      }
+      .lang-tab {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: background 0.2s;
+      }
+      .lang-tab.active {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        font-weight: bold;
+      }
+      .vet-loading {
+        color: #60a5fa;
+        font-style: italic;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header>
+        <h1>🐔 KUKU-KUKU AI</h1>
+        <p>Instant Chicken Disease Diagnostics & Health Analysis</p>
+      </header>
+
+      <!-- Real-time Stats Dashboard -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h4>Total Scans</h4>
+          <p id="statTotalScans">0</p>
+        </div>
+        <div class="stat-card">
+          <h4>Last Diagnosis</h4>
+          <p id="statLastDiagnosis" style="font-size: 1.2rem">None</p>
+        </div>
+        <div class="stat-card">
+          <h4>System Status</h4>
+          <p style="color: #10b981; font-size: 1.2rem">● Active</p>
+        </div>
+      </div>
+
+      <!-- Upload & Classifier Card -->
+      <div class="card">
+        <div
+          class="upload-area"
+          id="dropZone"
+          onclick="document.getElementById('fileInput').click()"
+        >
+          <div class="upload-icon">📸</div>
+          <h3>Drop a chicken image here or click to browse</h3>
+          <p
+            style="
+              color: var(--text-sub);
+              font-size: 0.85rem;
+              margin-top: 0.4rem;
+            "
+          >
+            Supports PNG, JPG, JPEG
+          </p>
+          <img id="previewImg" alt="Preview" />
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*" />
+        <button class="btn" id="predictBtn" disabled onclick="runInference()">
+          Analyze Image
+        </button>
+
+        <!-- Diagnostic Results Display -->
+        <div class="result-box" id="resultBox" style="display: none">
+          <div class="result-header">
+            <h3>Diagnosis Result</h3>
+            <span class="prediction-badge" id="predictionBadge">--</span>
+          </div>
+          <p style="margin-bottom: 1rem; color: var(--text-sub)">
+            Confidence Score:
+            <strong id="confidenceText" style="color: var(--text-main)"
+              >0%</strong
+            >
+          </p>
+
+          <h4>Class Probabilities:</h4>
+          <div id="probabilitiesContainer" style="margin-top: 0.8rem"></div>
+
+          <!-- Dynamic Multi-Language AI Solutions Box -->
+          <div
+            id="solutionContainer"
+            style="
+              margin-top: 1.5rem;
+              padding: 1rem;
+              background: rgba(255, 255, 255, 0.05);
+              border-radius: 8px;
+              border-left: 4px solid #3b82f6;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                margin-bottom: 0.6rem;
+              "
+            >
+              <h4 id="solutionTitle" style="color: #60a5fa; margin: 0">
+                📋 AI Veterinary Action Plan
+              </h4>
+              <div class="lang-tabs" id="langTabs">
+                <button class="lang-tab active" onclick="switchLanguage('en')">
+                  English
+                </button>
+                <button class="lang-tab" onclick="switchLanguage('ha')">
+                  Hausa
+                </button>
+                <button class="lang-tab" onclick="switchLanguage('yo')">
+                  Yorùbá
+                </button>
+                <button class="lang-tab" onclick="switchLanguage('ig')">
+                  Igbo
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="aiVetContent"
+              style="
+                font-size: 0.9rem;
+                line-height: 1.6;
+                white-space: pre-wrap;
+                color: var(--text-main);
+              "
+            >
+              <span class="vet-loading"
+                >⏳ Generating multilingual treatment guidelines with
+                AI...</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Vet Follow-up Query Card -->
+      <div class="card" id="aiVetCard" style="display: none">
+        <h3>💬 Ask AI Vet Follow-Up Questions</h3>
+        <p
+          style="
+            color: var(--text-sub);
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+          "
+        >
+          Need specific medication dosage or isolation tips for your farm size?
+          Ask below.
+        </p>
+
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem">
+          <input
+            type="text"
+            id="vetQueryInput"
+            placeholder="e.g., How much dosage should I give to 50 3-week-old chicks?"
+            style="
+              flex: 1;
+              padding: 0.75rem;
+              border-radius: 6px;
+              border: 1px solid rgba(255, 255, 255, 0.2);
+              background: rgba(0, 0, 0, 0.2);
+              color: white;
+            "
+          />
+          <button
+            class="btn"
+            id="askVetBtn"
+            onclick="askFollowUpVet()"
+            style="width: auto; padding: 0 1.2rem"
+          >
+            Ask AI
+          </button>
+        </div>
+
+        <div
+          id="aiVetFollowupResponse"
+          style="
+            display: none;
+            padding: 1rem;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+          "
+        ></div>
+      </div>
+
+      <!-- User Feedback Card -->
+      <div class="card feedback-section">
+        <h3>💬 Feedback & Case Data</h3>
+        <p
+          style="
+            color: var(--text-sub);
+            font-size: 0.85rem;
+            margin-bottom: 0.8rem;
+          "
+        >
+          Did the model accurately identify your flock's condition? Share
+          feedback to improve our system.
+        </p>
+        <textarea
+          id="feedbackText"
+          placeholder="Describe symptoms or verify accuracy..."
+        ></textarea>
+        <button
+          class="btn"
+          style="background: #334155"
+          onclick="submitFeedback()"
+        >
+          Submit Feedback
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <p class="creator-tag">
+        Designed & Built by <span class="glowing-name">Francis Abba</span>
+      </p>
+    </footer>
+
+    <!-- Frontend Engine Script -->
+    <script>
+      const fileInput = document.getElementById("fileInput");
+      const previewImg = document.getElementById("previewImg");
+      const predictBtn = document.getElementById("predictBtn");
+      const resultBox = document.getElementById("resultBox");
+      const dropZone = document.getElementById("dropZone");
+      const aiVetCard = document.getElementById("aiVetCard");
+
+      let currentDiagnosis = "";
+      let currentConfidence = 0;
+      let multiLangSolutions = { en: "", ha: "", yo: "", ig: "" };
+      let currentLang = "en";
+
+      // Stats counter
+      let totalScans = parseInt(localStorage.getItem("totalScans") || "0");
+      document.getElementById("statTotalScans").innerText = totalScans;
+
+      function handleFile(file) {
+        if (file && file.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            previewImg.src = event.target.result;
+            previewImg.style.display = "block";
+            predictBtn.disabled = false;
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+
+      fileInput.addEventListener("change", (e) =>
+        handleFile(e.target.files[0]),
+      );
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "var(--primary, #3b82f6)";
+      });
+
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.style.borderColor = "";
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "";
+        if (e.dataTransfer.files.length > 0) {
+          fileInput.files = e.dataTransfer.files;
+          handleFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      // Tab Switching Handler
+      function switchLanguage(lang) {
+        currentLang = lang;
+        document
+          .querySelectorAll(".lang-tab")
+          .forEach((tab) => tab.classList.remove("active"));
+        event.target.classList.add("active");
+
+        const contentDiv = document.getElementById("aiVetContent");
+        if (multiLangSolutions[lang]) {
+          contentDiv.innerText = multiLangSolutions[lang];
+        } else {
+          contentDiv.innerHTML = `<span class="vet-loading">Translation pending...</span>`;
+        }
+      }
+
+      // Main Inference Workflow
+      async function runInference() {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        predictBtn.innerText = "Analyzing...";
+        predictBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const response = await fetch("/predict", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            currentDiagnosis = data.prediction;
+            currentConfidence = data.confidence;
+
+            document.getElementById("predictionBadge").innerText =
+              currentDiagnosis;
+            document.getElementById("confidenceText").innerText =
+              `${currentConfidence.toFixed(1)}%`;
+
+            // Render probability bars
+            const probContainer = document.getElementById(
+              "probabilitiesContainer",
+            );
+            probContainer.innerHTML = "";
+
+            for (const [className, prob] of Object.entries(
+              data.probabilities,
+            )) {
+              const percentage =
+                typeof prob === "number"
+                  ? prob.toFixed(1)
+                  : parseFloat(prob).toFixed(1);
+              probContainer.innerHTML += `
+              <div class="prob-bar-container" style="margin-bottom: 0.6rem;">
+                <div class="prob-labels" style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.2rem;">
+                  <span>${className}</span>
+                  <span>${percentage}%</span>
+                </div>
+                <div class="prob-track" style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
+                  <div class="prob-fill" style="width: ${percentage}%; background: var(--primary, #3b82f6); height: 100%; border-radius: 4px;"></div>
+                </div>
+              </div>
+            `;
+            }
+
+            resultBox.style.display = "block";
+            aiVetCard.style.display = "block";
+
+            // Update Analytics
+            totalScans++;
+            localStorage.setItem("totalScans", totalScans);
+            document.getElementById("statTotalScans").innerText = totalScans;
+            document.getElementById("statLastDiagnosis").innerText =
+              currentDiagnosis;
+
+            // Trigger AI Multilingual Solutions Fetch
+            fetchMultilingualSolutions(currentDiagnosis, currentConfidence);
+          } else {
+            alert("Error: " + data.error);
+          }
+        } catch (err) {
+          alert(
+            "Could not connect to server. Make sure your internet is connected!",
+          );
+        } finally {
+          predictBtn.innerText = "Analyze Image";
+          predictBtn.disabled = false;
+        }
+      }
+
+      // Fetch Multilingual Advice from Gemini Endpoint
+      async function fetchMultilingualSolutions(disease, confidence) {
+        const contentDiv = document.getElementById("aiVetContent");
+        contentDiv.innerHTML = `<span class="vet-loading">⏳ Generating multilingual treatment guidelines (English, Hausa, Yoruba, Igbo)...</span>`;
+
+        try {
+          const res = await fetch("/ask-vet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              disease: disease,
+              confidence: confidence,
+              userQuery:
+                "Provide actionable treatment and biosecurity steps in English, Hausa, Yoruba, and Igbo.",
+            }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.solutions) {
+            multiLangSolutions = data.solutions;
+            contentDiv.innerText =
+              multiLangSolutions[currentLang] || multiLangSolutions.en;
+          } else {
+            contentDiv.innerText = data.advice || "Advice generated.";
+          }
+        } catch (err) {
+          contentDiv.innerText =
+            "⚠️ Failed to fetch AI advice. Please check server connectivity.";
+        }
+      }
+
+      // Handle Follow-Up Questions
+      async function askFollowUpVet() {
+        const queryInput = document.getElementById("vetQueryInput");
+        const askVetBtn = document.getElementById("askVetBtn");
+        const responseDiv = document.getElementById("aiVetFollowupResponse");
+        const userQuery = queryInput.value.trim();
+
+        if (!currentDiagnosis) {
+          alert("Please upload and analyze an image first!");
+          return;
+        }
+
+        if (!userQuery) {
+          alert("Please type a follow-up question!");
+          return;
+        }
+
+        askVetBtn.innerText = "Thinking...";
+        askVetBtn.disabled = true;
+
+        try {
+          const res = await fetch("/ask-vet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              disease: currentDiagnosis,
+              confidence: currentConfidence,
+              userQuery: userQuery,
+            }),
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.solutions) {
+            multiLangSolutions = data.solutions;
+            responseDiv.innerText =
+              multiLangSolutions[currentLang] || multiLangSolutions.en;
+            responseDiv.style.display = "block";
+          } else {
+            alert("AI Error: " + (data.error || "Unknown error"));
+          }
+        } catch (err) {
+          alert("Could not reach server route.");
+        } finally {
+          askVetBtn.innerText = "Ask AI";
+          askVetBtn.disabled = false;
+        }
+      }
+
+      function submitFeedback() {
+        const feedback = document.getElementById("feedbackText").value;
+        if (!feedback.trim()) {
+          alert("Please enter your feedback before submitting.");
+          return;
+        }
+        alert("Thank you, Your feedback has been recorded.");
+        document.getElementById("feedbackText").value = "";
+      }
+    </script>
+  </body>
+</html>

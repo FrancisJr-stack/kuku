@@ -1,0 +1,11 @@
+# Secret environment variables
+.env
+*.env
+
+# Heavy dependencies
+node_modules/
+uploads/
+
+# OS metadata files
+.DS_Store
+Thumbs.db
