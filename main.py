@@ -38,7 +38,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 CLASS_NAMES = ["Coccidiosis", "Healthy", "New Castle", "Salmonella"]
-CONFIDENCE_THRESHOLD = 0.90  # 60% minimum confidence required
+CONFIDENCE_THRESHOLD = 0.96  # 96% minimum confidence required
 
 session = None
 
@@ -582,7 +582,7 @@ class VetRequest(BaseModel):
     confidence: float
     userQuery: str = None
 
-# 4. /ask-vet AI Assistant Endpoint
+# /ask-vet AI Assistant Endpoint
 @app.post("/ask-vet")
 async def ask_vet(req: VetRequest):
     if not req.disease:
