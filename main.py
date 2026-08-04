@@ -38,7 +38,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 CLASS_NAMES = ["Coccidiosis", "Healthy", "New Castle", "Salmonella"]
-CONFIDENCE_THRESHOLD = 0.60  # 60% minimum confidence required
+CONFIDENCE_THRESHOLD = 0.90  # 60% minimum confidence required
 
 session = None
 
