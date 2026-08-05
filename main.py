@@ -44,7 +44,8 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 CLASS_NAMES = ["Coccidiosis", "Healthy", "New Castle", "Salmonella"]
-CONFIDENCE_THRESHOLD = 0.96  # 96% minimum confidence required
+CONFIDENCE_THRESHOLD = 0.80        # Minimum top class confidence (80%)
+ACTIVE_CLASS_THRESHOLD = 0.001     # 0.1% probability counts as active class
 
 session = None
 
@@ -60,7 +61,7 @@ def init_model():
 
 init_model()
 
-# Preprocess uploaded image into RGB tensor
+# Preprocess uploaded image: Center-crop to square + RGB Tensor Normalization
 async def preprocess_image(image_bytes: bytes):
     TARGET_SIZE = 244
 
@@ -70,7 +71,15 @@ async def preprocess_image(image_bytes: bytes):
     if img is None:
         raise ValueError("CORRUPTED_IMAGE")
 
-    img_resized = cv2.resize(img, (TARGET_SIZE, TARGET_SIZE), interpolation=cv2.INTER_LINEAR)
+    # CENTER CROP TO SQUARE (Removes distractive background noise)
+    h, w, _ = img.shape
+    min_dim = min(h, w)
+    start_x = (w - min_dim) // 2
+    start_y = (h - min_dim) // 2
+    img_cropped = img[start_y:start_y + min_dim, start_x:start_x + min_dim]
+
+    # Resize cleanly to target model input size
+    img_resized = cv2.resize(img_cropped, (TARGET_SIZE, TARGET_SIZE), interpolation=cv2.INTER_LINEAR)
     img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
 
     img_float = img_rgb.astype(np.float32) / 255.0
@@ -417,7 +426,11 @@ async def serve_frontend():
             document.getElementById("statTotalScans").innerText = totalScans;
             document.getElementById("statLastDiagnosis").innerText = currentDiagnosis;
 
-            fetchMultilingualSolutions(currentDiagnosis, currentConfidence);
+            if (data.isRecognized) {
+              fetchMultilingualSolutions(currentDiagnosis, currentConfidence);
+            } else {
+              document.getElementById("aiVetContent").innerText = "⚠️ This image was flagged as an Unknown Image. Please upload a clear photo of poultry feces.";
+            }
           } else {
             alert("Error: " + data.error);
           }
@@ -453,7 +466,7 @@ async def serve_frontend():
             contentDiv.innerText = data.advice || "Advice generated.";
           }
         } catch (err) {
-          contentDiv.innerText = "⚠️ Failed to fetch AI advice. Please check server connectivity.";
+          contentDiv.innerText = "⚠️ Failed to fetch AI advice. Please check connectivity.";
         }
       }
 
@@ -547,8 +560,20 @@ async def predict(file: UploadFile = File(...)):
         output_logits = outputs[0][0]
         probabilities = softmax(output_logits)
 
+        # Get highest probability class and top probability
         max_prob_index = int(np.argmax(probabilities))
-        max_confidence = float(probabilities[max_prob_index])
+        top_probability = float(probabilities[max_prob_index])
+
+        # Count active classes where probability exceeds ACTIVE_CLASS_THRESHOLD (0.001)
+        active_classes = int(np.sum(probabilities > ACTIVE_CLASS_THRESHOLD))
+
+        predicted_class = CLASS_NAMES[max_prob_index]
+
+        # Unknown detection 
+        is_unknown = False
+        if active_classes == 4 or top_probability < CONFIDENCE_THRESHOLD:
+            predicted_class = "Unknown Image"
+            is_unknown = True
 
         # Background save image to Supabase if configured with debugging prints
         if supabase:
@@ -569,16 +594,6 @@ async def predict(file: UploadFile = File(...)):
         else:
             print("Supabase client is NOT initialized (missing URL or KEY).")
 
-        if max_confidence < CONFIDENCE_THRESHOLD:
-            zero_prob_map = {className: 0.0 for className in CLASS_NAMES}
-            return {
-                "isRecognized": False,
-                "prediction": "Unrecognized Image",
-                "confidence": 0.0,
-                "message": "Image not a poultry feces image, please input a right image.",
-                "probabilities": zero_prob_map
-            }
-
         percentages = [float(round(p * 100, 2)) for p in probabilities]
         current_total = sum(percentages)
         diff = float(round(100.00 - current_total, 2))
@@ -586,9 +601,18 @@ async def predict(file: UploadFile = File(...)):
 
         prob_map = {CLASS_NAMES[i]: percentages[i] for i in range(len(CLASS_NAMES))}
 
+        if is_unknown:
+            return {
+                "isRecognized": False,
+                "prediction": "Unknown Image",
+                "confidence": float(round(top_probability * 100, 2)),
+                "message": "Image confidence is too low or class probabilities are too widely distributed.",
+                "probabilities": prob_map
+            }
+
         return {
             "isRecognized": True,
-            "prediction": CLASS_NAMES[max_prob_index],
+            "prediction": predicted_class,
             "confidence": percentages[max_prob_index],
             "probabilities": prob_map
         }
