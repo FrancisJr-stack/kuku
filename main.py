@@ -442,7 +442,7 @@ async def serve_frontend():
             alert("Error: " + data.error);
           }
         } catch (err) {
-          alert("Could not connect to server. Make sure main.py is running!");
+         alert("Connection failed. Please check your internet connection and try again.");
         } finally {
           predictBtn.innerText = "Analyze Image";
           predictBtn.disabled = false;
@@ -473,7 +473,7 @@ async def serve_frontend():
             contentDiv.innerText = data.advice || "Advice generated.";
           }
         } catch (err) {
-          contentDiv.innerText = "⚠️ Failed to fetch AI advice. Please check server connectivity.";
+          contentDiv.innerText = "⚠️ Server is waking up or connectivity failed. Please try analyzing again in a moment.";
         }
       }
 
