@@ -71,7 +71,7 @@ async def preprocess_image(image_bytes: bytes):
     if img is None:
         raise ValueError("CORRUPTED_IMAGE")
 
-    # CENTER CROP TO SQUARE (Removes distractive background noise)
+    # --- CENTER CROP TO SQUARE (Removes distractive background noise) ---
     h, w, _ = img.shape
     min_dim = min(h, w)
     start_x = (w - min_dim) // 2
@@ -189,8 +189,10 @@ async def serve_frontend():
             <strong id="confidenceText" style="color: var(--text-main)">0%</strong>
           </p>
 
-          <h4>Class Probabilities:</h4>
-          <div id="probabilitiesContainer" style="margin-top: 0.8rem"></div>
+          <div id="probabilitiesWrapper">
+            <h4>Class Probabilities:</h4>
+            <div id="probabilitiesContainer" style="margin-top: 0.8rem"></div>
+          </div>
 
           <div
             id="solutionContainer"
@@ -399,25 +401,35 @@ async def serve_frontend():
             document.getElementById("confidenceText").innerText = `${currentConfidence.toFixed(1)}%`;
 
             const probContainer = document.getElementById("probabilitiesContainer");
+            const probWrapper = document.getElementById("probabilitiesWrapper");
             probContainer.innerHTML = "";
 
-            for (const [className, prob] of Object.entries(data.probabilities)) {
-              const percentage = typeof prob === "number" ? prob.toFixed(1) : parseFloat(prob).toFixed(1);
-              probContainer.innerHTML += `
-              <div class="prob-bar-container" style="margin-bottom: 0.6rem;">
-                <div class="prob-labels" style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.2rem;">
-                  <span>${className}</span>
-                  <span>${percentage}%</span>
+            if (!data.isRecognized) {
+              probWrapper.style.display = "none";
+              aiVetCard.style.display = "none";
+              document.getElementById("aiVetContent").innerText = "⚠️ This image was recognized as an Unknown Image (probabilities overlap or confidence is low). Please upload a clear photo of poultry droppings.";
+            } else {
+              probWrapper.style.display = "block";
+              aiVetCard.style.display = "block";
+
+              for (const [className, prob] of Object.entries(data.probabilities)) {
+                const percentage = typeof prob === "number" ? prob.toFixed(1) : parseFloat(prob).toFixed(1);
+                probContainer.innerHTML += `
+                <div class="prob-bar-container" style="margin-bottom: 0.6rem;">
+                  <div class="prob-labels" style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.2rem;">
+                    <span>${className}</span>
+                    <span>${percentage}%</span>
+                  </div>
+                  <div class="prob-track" style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div class="prob-fill" style="width: ${percentage}%; background: var(--primary, #3b82f6); height: 100%; border-radius: 4px;"></div>
+                  </div>
                 </div>
-                <div class="prob-track" style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
-                  <div class="prob-fill" style="width: ${percentage}%; background: var(--primary, #3b82f6); height: 100%; border-radius: 4px;"></div>
-                </div>
-              </div>
-            `;
+              `;
+              }
+              fetchMultilingualSolutions(currentDiagnosis, currentConfidence);
             }
 
             resultBox.style.display = "block";
-            aiVetCard.style.display = "block";
 
             totalScans++;
             localStorage.setItem("totalScans", totalScans);
@@ -426,11 +438,6 @@ async def serve_frontend():
             document.getElementById("statTotalScans").innerText = totalScans;
             document.getElementById("statLastDiagnosis").innerText = currentDiagnosis;
 
-            if (data.isRecognized) {
-              fetchMultilingualSolutions(currentDiagnosis, currentConfidence);
-            } else {
-              document.getElementById("aiVetContent").innerText = "⚠️ This image was flagged as an Unknown Image. Please upload a clear photo of poultry feces.";
-            }
           } else {
             alert("Error: " + data.error);
           }
@@ -466,7 +473,7 @@ async def serve_frontend():
             contentDiv.innerText = data.advice || "Advice generated.";
           }
         } catch (err) {
-          contentDiv.innerText = "⚠️ Failed to fetch AI advice. Please check connectivity.";
+          contentDiv.innerText = "⚠️ Failed to fetch AI advice. Please check server connectivity.";
         }
       }
 
@@ -569,7 +576,7 @@ async def predict(file: UploadFile = File(...)):
 
         predicted_class = CLASS_NAMES[max_prob_index]
 
-        # Unknown detection 
+        # Unknown detection logic matching test script
         is_unknown = False
         if active_classes == 4 or top_probability < CONFIDENCE_THRESHOLD:
             predicted_class = "Unknown Image"
@@ -602,12 +609,13 @@ async def predict(file: UploadFile = File(...)):
         prob_map = {CLASS_NAMES[i]: percentages[i] for i in range(len(CLASS_NAMES))}
 
         if is_unknown:
+            zero_prob_map = {className: 0.0 for className in CLASS_NAMES}
             return {
                 "isRecognized": False,
                 "prediction": "Unknown Image",
                 "confidence": float(round(top_probability * 100, 2)),
-                "message": "Image confidence is too low or class probabilities are too widely distributed.",
-                "probabilities": prob_map
+                "message": "Image confidence is too low or class probabilities overlap.",
+                "probabilities": zero_prob_map
             }
 
         return {
