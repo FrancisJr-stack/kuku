@@ -167,7 +167,7 @@ async def serve_frontend():
           onclick="document.getElementById('fileInput').click()"
         >
           <div class="upload-icon">📸</div>
-          <h3>Drop a chicken image here or click to browse</h3>
+          <h3>Upload poultry waste/droppings photo here</h3>
           <p style="color: var(--text-sub); font-size: 0.85rem; margin-top: 0.4rem;">
             Supports PNG, JPG, JPEG
           </p>
